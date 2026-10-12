@@ -66,7 +66,7 @@ contract Voting is Ownable {
 
     // ----- Fonctions -----
     // --- Admin ---
-    function addVoter(address _voter) external onlyOwner {
+    function step01_addVoter(address _voter) external onlyOwner {
         require(_voter != address(0), "Invalid address");
         require(workflowStatus == WorkflowStatus.RegisteringVoters,"Voters registration is closed");
         require(!voters[_voter].isRegistered,"Voter already registered");
@@ -76,7 +76,7 @@ contract Voting is Ownable {
     }
 
     // - Status -
-    function startProposals() external onlyOwner {
+    function step02_startProposals() external onlyOwner {
         require(workflowStatus == WorkflowStatus.RegisteringVoters,"Voters registration phase is not active");
         //
         //  /!\ Si 0 voters, pas de proposal... si pas de proposal, pas de vote... TODO VotingPlus... 
@@ -84,7 +84,7 @@ contract Voting is Ownable {
         _changeWorkflowStatus(WorkflowStatus.ProposalsRegistrationStarted);
     }
 
-    function endProposals() external onlyOwner {
+    function step04_endProposals() external onlyOwner {
         require(workflowStatus == WorkflowStatus.ProposalsRegistrationStarted,"Proposals registration has not started");
         // vu qu'on peut pas revenir en arriere, je bloque la fin des registration si aucune proposition...
         require(proposals.length > 0, "No proposal registered");
@@ -93,7 +93,7 @@ contract Voting is Ownable {
     }
 
 
-    function startVoting() external onlyOwner {
+    function step05_startVoting() external onlyOwner {
         require(workflowStatus == WorkflowStatus.ProposalsRegistrationEnded,"Proposals registration is not ended");
 
         // doublons, mais en cas d'editions des proposal en externe entre la fin des propositions, et le debut du vote...
@@ -104,14 +104,14 @@ contract Voting is Ownable {
     }
 
 
-    function endVoting() external onlyOwner {
+    function step07_endVoting() external onlyOwner {
         require(workflowStatus == WorkflowStatus.VotingSessionStarted,"Voting session has not started");
 
         _changeWorkflowStatus(WorkflowStatus.VotingSessionEnded);
     }
 
     // - décompte final -
-    function tallyVotes() external onlyOwner {
+    function step08_tallyVotes() external onlyOwner {
         require(workflowStatus == WorkflowStatus.VotingSessionEnded,"Voting session is not ended");
 
         uint highestVoteCount = proposals[0].voteCount;
@@ -130,7 +130,7 @@ contract Voting is Ownable {
     }
 
     // --- Voters ---
-    function addProposal(string memory _description) external onlyVoters {
+    function step03_addProposal(string memory _description) external onlyVoters {
         require(bytes(_description).length > 0, "Invalid proposal");
         require(workflowStatus == WorkflowStatus.ProposalsRegistrationStarted,"You can't add proposal right now");
 
@@ -138,7 +138,7 @@ contract Voting is Ownable {
         emit ProposalRegistered(proposals.length-1);
     }
     
-    function vote(uint _voteId) external onlyVoters {
+    function step06_vote(uint _voteId) external onlyVoters {
         require(workflowStatus == WorkflowStatus.VotingSessionStarted,"This vote isn't active right now");
         require(!voters[msg.sender].hasVoted,"Voter already voted");
         require(_voteId <proposals.length, "Invalid vote (proposal ID too high)");
