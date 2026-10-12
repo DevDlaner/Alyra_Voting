@@ -6,6 +6,9 @@ pragma solidity 0.8.34;
 // l'admin peut s'ajouter en voter
 // egalité=premiere proposition gagne
 
+// fonctions renommées pour faciliter les test dans l'environement remix:
+// l'ordre alphabetique rendait la tache plus difficile.
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Voting is Ownable {
