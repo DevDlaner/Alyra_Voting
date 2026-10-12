@@ -2,7 +2,7 @@
 pragma solidity 0.8.34;
 
 // systeme de vote simple:
-// whitelist, plusieur proposition par voters, 1 vote par voters
+// whitelist, plusieur proposition par voter, 1 vote par voter
 // l'admin peut s'ajouter en voter
 // egalité=premiere proposition gagne
 
@@ -31,11 +31,15 @@ contract Voting is Ownable {
     }
 
     // ----- Variables -----
-    mapping(address => Voter) voters;
-    Proposal[] proposals;
+    // ces 2 variables sont en private pour "forcer" le passage par mon get et les require...
+    mapping(address => Voter) private voters;
+    Proposal[] private proposals;
 
     WorkflowStatus public workflowStatus;
-    uint public winningProposalId;
+    // j'ai choisis de passer cette variable en private,
+    // pour ne permetre l'acces qu'une fois le vote terminé.
+    // En accedant a cette variable trop tot, on peut croire que la variable est deja preremplie.
+    uint private winningProposalId;
 
     // ----- Events -----
     event VoterRegistered(address voterAddress);
@@ -74,7 +78,9 @@ contract Voting is Ownable {
     // - Status -
     function startProposals() external onlyOwner {
         require(workflowStatus == WorkflowStatus.RegisteringVoters,"Voters registration phase is not active");
-
+        //
+        //  /!\ Si 0 voters, pas de proposal... si pas de proposal, pas de vote... TODO VotingPlus... 
+        // 
         _changeWorkflowStatus(WorkflowStatus.ProposalsRegistrationStarted);
     }
 
@@ -133,9 +139,9 @@ contract Voting is Ownable {
     }
     
     function vote(uint _voteId) external onlyVoters {
-        require(_voteId <proposals.length, "Invalid vote (proposal ID too high)");
         require(workflowStatus == WorkflowStatus.VotingSessionStarted,"This vote isn't active right now");
         require(!voters[msg.sender].hasVoted,"Voter already voted");
+        require(_voteId <proposals.length, "Invalid vote (proposal ID too high)");
 
         proposals[_voteId].voteCount++;
         voters[msg.sender].hasVoted=true;
@@ -152,10 +158,21 @@ contract Voting is Ownable {
     }
 
     // ----- Getters -----
-    function getVoter(address _voter) external view returns (Voter memory) { return voters[_voter]; }
-    function getProposals() external view returns (Proposal[] memory){return proposals;}
+    function getVoter(address _voter) external view returns (Voter memory) { 
+        require(voters[_voter].isRegistered, "Voter not registered");
+        return voters[_voter];
+    }
+    function getProposals() external view returns (Proposal[] memory){
+        require(proposals.length>0,"No proposal yet");
+        return proposals;
+    }
     function getWinner() external  view returns (Proposal memory) {
         require(workflowStatus == WorkflowStatus.VotesTallied,"Votes not counted yet");
         return proposals[winningProposalId];
+    }
+    function getWinningProposalId() external view returns (uint) {
+        require(workflowStatus == WorkflowStatus.VotesTallied,"Votes not counted yet");
+
+        return winningProposalId;
     }
 }
