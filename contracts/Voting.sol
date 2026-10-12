@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.34;
 
+// systeme de vote simple:
+// whitelist, plusieur proposition par voters, 1 vote par voters
+// l'admin peut s'ajouter en voter
+// egalité=premiere proposition gagne
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Voting is Ownable {
@@ -66,30 +71,15 @@ contract Voting is Ownable {
         emit VoterRegistered(_voter);
     }
 
-    // - Changements de status ---
-    function _changeWorkflowStatus(WorkflowStatus _newStatus) internal {
-        WorkflowStatus previousStatus = workflowStatus;
-        workflowStatus = _newStatus;
-
-        emit WorkflowStatusChange(previousStatus, _newStatus);
-    }
-
-
+    // - Status -
     function startProposals() external onlyOwner {
-        require(
-            workflowStatus == WorkflowStatus.RegisteringVoters,
-            "Voters registration phase is not active"
-        );
+        require(workflowStatus == WorkflowStatus.RegisteringVoters,"Voters registration phase is not active");
 
         _changeWorkflowStatus(WorkflowStatus.ProposalsRegistrationStarted);
     }
 
-
     function endProposals() external onlyOwner {
-        require(
-            workflowStatus == WorkflowStatus.ProposalsRegistrationStarted,
-            "Proposals registration has not started"
-        );
+        require(workflowStatus == WorkflowStatus.ProposalsRegistrationStarted,"Proposals registration has not started");
         // vu qu'on peut pas revenir en arriere, je bloque la fin des registration si aucune proposition...
         require(proposals.length > 0, "No proposal registered");
 
@@ -98,12 +88,10 @@ contract Voting is Ownable {
 
 
     function startVoting() external onlyOwner {
-        require(
-            workflowStatus == WorkflowStatus.ProposalsRegistrationEnded,
-            "Proposals registration is not ended"
-        );
+        require(workflowStatus == WorkflowStatus.ProposalsRegistrationEnded,"Proposals registration is not ended");
+
         // doublons, mais en cas d'editions des proposal en externe entre la fin des propositions, et le debut du vote...
-        // dans ce cadre precis, pas utile, mais je prefere le mettre au cas ou un jour je veuille reutiliser le code...
+        // dans ce cadre precis, pas utile (je test deja a la fin des votes), mais je prefere le mettre au cas ou un jour je veuille reutiliser le code...
         require(proposals.length > 0, "No proposal registered");
 
         _changeWorkflowStatus(WorkflowStatus.VotingSessionStarted);
@@ -111,20 +99,14 @@ contract Voting is Ownable {
 
 
     function endVoting() external onlyOwner {
-        require(
-            workflowStatus == WorkflowStatus.VotingSessionStarted,
-            "Voting session has not started"
-        );
+        require(workflowStatus == WorkflowStatus.VotingSessionStarted,"Voting session has not started");
 
         _changeWorkflowStatus(WorkflowStatus.VotingSessionEnded);
     }
 
-    // décompte...
+    // - décompte final -
     function tallyVotes() external onlyOwner {
-        require(
-            workflowStatus == WorkflowStatus.VotingSessionEnded,
-            "Voting session is not ended"
-        );
+        require(workflowStatus == WorkflowStatus.VotingSessionEnded,"Voting session is not ended");
 
         uint highestVoteCount = proposals[0].voteCount;
         winningProposalId = 0;
@@ -159,5 +141,21 @@ contract Voting is Ownable {
         voters[msg.sender].hasVoted=true;
         voters[msg.sender].votedProposalId=_voteId;
         emit Voted(msg.sender, _voteId);
+    }
+
+    // ----- Fonctions internes -----
+    function _changeWorkflowStatus(WorkflowStatus _newStatus) internal {
+        WorkflowStatus previousStatus = workflowStatus;
+        workflowStatus = _newStatus;
+
+        emit WorkflowStatusChange(previousStatus, _newStatus);
+    }
+
+    // ----- Getters -----
+    function getVoter(address _voter) external view returns (Voter memory) { return voters[_voter]; }
+    function getProposals() external view returns (Proposal[] memory){return proposals;}
+    function getWinner() external  view returns (Proposal memory) {
+        require(workflowStatus == WorkflowStatus.VotesTallied,"Votes not counted yet");
+        return proposals[winningProposalId];
     }
 }
