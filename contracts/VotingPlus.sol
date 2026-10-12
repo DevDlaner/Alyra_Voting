@@ -100,6 +100,20 @@ contract VotingPlus is Ownable {
 
     // ----- Fonctions -----
     // --- Admin ---
+    // ajout d'un nom au vote en cas de plusieurs vote a la fois, et/ou pour le front...
+    // non modifiable, pour la confiance du vote...
+
+    function step00_setVoteName(string memory _voteName) external onlyOwner {
+        require(bytes(_voteName).length > 0, "Invalid vote name");
+        require(bytes(voteName).length == 0, "Vote name already set");
+        require(
+            workflowStatus == WorkflowStatus.RegisteringVoters,
+            "Vote already started"
+        );
+
+        voteName = _voteName;
+    }
+    
     function step01_addVoter(address _voter,uint _nbVotes) external onlyOwner {
         require(_voter != address(0), "Invalid address");
         require(workflowStatus < WorkflowStatus.VotingSessionStarted,"Voters registration is closed");
@@ -108,7 +122,7 @@ contract VotingPlus is Ownable {
 
         voters[_voter].isRegistered = true;
         voters[_voter].votingPower = _nbVotes;
-        stats.nbVoters++; // ici, je suppose qu'on donne les droit de vote en une fois, pour simplifier (grace au require)
+        stats.nbVoters++; // ici, je suppose qu'on donne les droit de vote en une fois, pour simplifier (grace au require, avec isregistred)
         stats.nbVotesGifted +=_nbVotes;
         emit VoterRegistered(_voter);
         emit VoteAllowed(_voter,_nbVotes);
@@ -185,7 +199,7 @@ contract VotingPlus is Ownable {
 
         require(_voterAddress != msg.sender,"Cannot transfer voting power to yourself");
 
-        require(voters[msg.sender].isRegistered,"Giver is not whitelisted");
+        // require(voters[msg.sender].isRegistered,"Giver is not whitelisted"); // => useless (onlyVoters)
         require(voters[_voterAddress].isRegistered,"Receiver is not whitelisted");
 
         require(_votingPowerGiven > 0,"Voting power must be greater than zero");
@@ -200,6 +214,7 @@ contract VotingPlus is Ownable {
     function step07_vote(uint _voteId, uint _votingPower) external onlyVoters {
         require(workflowStatus == WorkflowStatus.VotingSessionStarted,"This vote isn't active right now");
         require(voters[msg.sender].votingPower>0,"Voter has no powerVoting left");
+        require(_votingPower > 0, "Voting power must be greater than zero"); // pour eviter le spam de vote a 0
         require(voters[msg.sender].votingPower>=_votingPower,"Voter has not enough powerVoting left");
         require(_voteId <proposals.length, "Invalid vote (proposal ID too high)");
 
