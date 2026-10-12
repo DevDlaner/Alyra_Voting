@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Voting is Ownable {
 
+    // ----- Types -----
     struct Voter {
         bool isRegistered;
         bool hasVoted;
@@ -24,12 +25,14 @@ contract Voting is Ownable {
         VotesTallied
     }
 
+    // ----- Variables -----
     mapping(address => Voter) voters;
     Proposal[] proposals;
 
     WorkflowStatus public workflowStatus;
     uint public winningProposalId;
 
+    // ----- Events -----
     event VoterRegistered(address voterAddress);
 
     event WorkflowStatusChange(
@@ -41,7 +44,24 @@ contract Voting is Ownable {
 
     event Voted(address voter, uint proposalId);
 
+    // ----- Modifiers -----
+    modifier onlyVoters() {
+        require(voters[msg.sender].isRegistered,"You're not whitelisted");
+        _;
+    }
+
+    // ----- Constructor -----
     constructor() Ownable(msg.sender) {
         workflowStatus = WorkflowStatus.RegisteringVoters;
+    }
+
+    // ----- Fonctions -----
+    function addVoter(address _voter) external onlyOwner {
+        require(_voter != address(0), "Invalid address");
+        require(workflowStatus == WorkflowStatus.RegisteringVoters,"Voters registration is closed");
+        require(!voters[_voter].isRegistered,"Voter already registered");
+
+        voters[_voter].isRegistered = true;
+        emit VoterRegistered(_voter);
     }
 }
