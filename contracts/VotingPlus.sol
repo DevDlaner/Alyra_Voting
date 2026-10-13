@@ -13,9 +13,11 @@ pragma solidity 0.8.34;
 //
 // pour "simuler le transfert" de token de droit de vote, je vais ajouter une fonction de transfert de votes entres utilisateurs whitelistés.
 //
-// je vais aussi remedier au soft lock de passer en start proposing avant d'avoir ajouter un utilisateur, 
-// et laisser le droit ouvert jusqu'a l'ouverture des votes: je close l'ajout de voter a ce moment la:
-// meme si il est trop tard pour ajouter une proposition, on peut gagner le droit de voter jusqu'a l'ouverture de votes.
+// je vais aussi remedier au soft lock de passer en start proposing avant d'avoir ajouter un utilisateur
+
+// TODO: ajouter une fonction de dont de votePower a l'admin, 
+// qui test si le mec est deja registred pour l'ajouter aux stats si c'est pas le cas, etc...
+// - plus de warning?
 
 // fonctions renommées pour faciliter les test dans l'environement remix:
 // l'ordre alphabetique rendait la tache plus difficile.
@@ -60,7 +62,7 @@ contract VotingPlus is Ownable {
     Stat public stats;
 
     // En cas de plusieur votes lancé en meme temps
-    string voteName;
+    string public voteName;
 
     // ces 2 variables sont en private pour "forcer" le passage par mon get et les require...
     mapping(address => Voter) private voters;
@@ -113,10 +115,10 @@ contract VotingPlus is Ownable {
 
         voteName = _voteName;
     }
-    
+
     function step01_addVoter(address _voter,uint _nbVotes) external onlyOwner {
         require(_voter != address(0), "Invalid address");
-        require(workflowStatus < WorkflowStatus.VotingSessionStarted,"Voters registration is closed");
+        require(workflowStatus == WorkflowStatus.RegisteringVoters,"Voters registration is closed");
         require(!voters[_voter].isRegistered,"Voter already registered");
         require(_nbVotes>=1,"need at least 1 vote power");
 
